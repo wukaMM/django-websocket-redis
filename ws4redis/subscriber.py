@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+
+import jwt
+
 from django.conf import settings
 from ws4redis.redis_store import RedisStore, SELF
 
@@ -20,11 +23,26 @@ class RedisSubscriber(RedisStore):
         """
         return self._subscription.parse_response()
 
+    def check_token(self, token, facility):
+        SSO_KEY = ''
+        try:
+            token = token.encode(encoding="utf-8")
+            data = jwt.decode(token, SSO_KEY, algorithms=['HS256'])
+            if facility == data.get("comid"):
+                return True
+            return False
+
+        except:
+            return False
+
     def set_pubsub_channels(self, request, channels):
         """
         Initialize the channels used for publishing and subscribing messages through the message queue.
         """
-        facility = request.path_info.replace(settings.WEBSOCKET_URL, '', 1)
+        _facility = request.path_info.replace(settings.WEBSOCKET_URL, '', 1)
+
+        facility = _facility.split("/")[0]
+        token = _facility.split("/")[1]
 
         # initialize publishers
         audience = {
@@ -45,6 +63,10 @@ class RedisSubscriber(RedisStore):
             'broadcast': 'subscribe-broadcast' in channels,
         }
         self._subscription = self._connection.pubsub()
+
+        if not self.check_token(token, facility):
+            return
+
         for key in self._get_message_channels(request=request, facility=facility, **audience):
             self._subscription.subscribe(key)
 
