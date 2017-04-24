@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import jwt
+import requests
 
 from django.conf import settings
 from ws4redis.redis_store import RedisStore, SELF
@@ -24,16 +24,19 @@ class RedisSubscriber(RedisStore):
         return self._subscription.parse_response()
 
     def check_token(self, token, facility):
-        SSO_KEY = ''
-        try:
-            token = token.encode(encoding="utf-8")
-            data = jwt.decode(token, SSO_KEY, algorithms=['HS256'])
-            if facility == data.get("comid"):
-                return True
+        r = requests.post("http://localhost:8888/sso/verify/token/", headers={"tfssotoken": token})
+        data = r.json()
+
+        if data.get("err_code") != 100:
             return False
 
-        except:
+        if str(data.get("data", {}).get("comid")) != facility:
             return False
+
+        if data.get("data", {}).get("admin_group") != 1:
+            return False
+
+        return True
 
     def set_pubsub_channels(self, request, channels):
         """

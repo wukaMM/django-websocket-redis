@@ -53,7 +53,7 @@ setup(
         'gevent',
         'greenlet',
         'six',
-        'PyJWT'
+        'requests'
     ],
     extras_require={
         'uwsgi': ['uWSGI>=1.9.20'],
